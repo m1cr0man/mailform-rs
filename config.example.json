@@ -1,8 +1,0 @@
-{
-    "smtp_host": "127.0.0.1",
-    "smtp_username": "jdoe",
-    "smtp_password": "ug0tme",
-    "from_address": "mysite@example.com",
-    "to_address": "jdoe@example.com",
-    "send_retries": 3
-}

@@ -1,45 +1,55 @@
-use std::{fs::File, io::BufReader, sync::Arc, thread};
+use std::{process::exit, sync::Arc, thread};
 
 use axum::Router;
-use clap_serde_derive::ClapSerde;
+use clap::{crate_authors, crate_description, crate_version, Arg, ArgAction, Command};
 
 use crate::mailform::{Config, Mailform};
-
-use clap::Parser;
 
 fn app(service: &Mailform) -> Router {
     crate::http::get_router(Arc::new(service.get_sender()))
 }
 
-#[derive(Parser)]
-#[command(author, version, about)]
-struct Args {
-    // TODO make optional
-    /// Config file
-    #[arg(
-        short,
-        long = "config",
-        default_value = "config.json",
-        env = "MAILFORM_CONFIG"
-    )]
-    config_path: std::path::PathBuf,
-
-    /// Rest of arguments
-    #[command(flatten)]
-    pub config: <Config as clap_serde_derive::ClapSerde>::Opt,
-}
-
 pub(crate) async fn main() {
-    let mut args = Args::parse();
+    let cli = Command::new("Mailform")
+        .about(format!(
+            "{}\n{} {}",
+            crate_description!(),
+            "Configuration is managed using environment variables.",
+            "See the docs for more information.",
+        ))
+        .arg(
+            Arg::new("check")
+                .action(ArgAction::SetTrue)
+                .short('c')
+                .long("check")
+                .help("Check the configuration"),
+        )
+        .version(crate_version!())
+        .author(crate_authors!("\n"));
 
-    let config = if let Ok(cfg_file) = File::open(&args.config_path) {
-        match serde_json::from_reader::<_, <Config as ClapSerde>::Opt>(BufReader::new(cfg_file)) {
-            Ok(config) => Config::from(config).merge(&mut args.config),
-            Err(err) => panic!("Error in configuration file:\n{err:#?}"),
-        }
-    } else {
-        Config::from(&mut args.config)
-    };
+    let args = cli.get_matches();
+
+    let cfg_source = config::Config::builder()
+        .add_source(
+            config::Environment::with_prefix("MAILFORM")
+                .convert_case(config::Case::ScreamingSnake)
+                .try_parsing(true),
+        )
+        .build()
+        .unwrap();
+
+    let config: Config = cfg_source
+        .try_deserialize()
+        .map_err(|err| {
+            println!("Error in the provided configuration: {}", err);
+            exit(2);
+        })
+        .unwrap();
+
+    if args.get_flag("check") {
+        println!("Configuration is valid.");
+        exit(0);
+    }
 
     let service = Mailform::from(config.clone());
 
