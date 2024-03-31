@@ -3,7 +3,10 @@ use super::{
 };
 
 use lettre::{transport::smtp::authentication::Credentials, SmtpTransport, Transport};
-use std::{sync::mpsc, time::Duration};
+use std::{
+    sync::mpsc::{self, RecvTimeoutError},
+    time::Duration,
+};
 
 #[derive(Debug)]
 pub struct Mailform {
@@ -58,7 +61,7 @@ impl Mailform {
 
     pub fn process_mail(self) {
         loop {
-            match self.recv.recv_timeout(Duration::from_secs(5)) {
+            match self.recv.recv_timeout(Duration::from_secs(30)) {
                 Ok(msg) => match self.send_mail(msg.message.clone()) {
                     Ok(_) => tracing::debug!("Message sent"),
                     Err(err) => {
@@ -73,7 +76,8 @@ impl Mailform {
                         }
                     }
                 },
-                Err(_) => tracing::debug!("No message in last 5 seconds"),
+                Err(RecvTimeoutError::Disconnected) => return,
+                Err(_) => {}
             }
         }
     }

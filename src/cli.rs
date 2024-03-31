@@ -1,22 +1,25 @@
 use axum::Router;
 use clap::{crate_authors, crate_description, crate_version, Arg, ArgAction, Command};
-use hyperlocal::UnixServerExt;
 use std::env;
 use std::io::Write;
-use std::net::SocketAddr;
-use std::{error::Error, path::PathBuf, process::exit, sync::Arc, thread};
+use std::{error::Error, process::exit, sync::Arc, thread};
 
 use crate::mailform::{Config, Mailform};
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct AppConfig {
-    listen_address: Option<SocketAddr>,
-    listen_socket: Option<PathBuf>,
+    listener_address: tokio_listener::ListenerAddress,
 }
 
-fn parse_config<'a, T: serde::Deserialize<'a>>(
-    cfg_source: config::Config,
-) -> Result<T, Box<dyn Error>> {
+fn parse_config<'a, T: serde::Deserialize<'a>>(prefix: &str) -> Result<T, Box<dyn Error>> {
+    let cfg_source = config::Config::builder()
+        .add_source(
+            config::Environment::with_prefix(prefix)
+                .convert_case(config::Case::ScreamingSnake)
+                .try_parsing(true),
+        )
+        .build()?;
+
     cfg_source.try_deserialize().map_err(|err| {
         tracing::error!("Error in the provided configuration: {}", err);
         exit(2);
@@ -78,27 +81,9 @@ pub(crate) async fn main() {
 
     setup_logger();
 
-    let cfg_source = config::Config::builder()
-        .add_source(
-            config::Environment::with_prefix("MAILFORM")
-                .convert_case(config::Case::ScreamingSnake)
-                .try_parsing(true),
-        )
-        .build()
-        .unwrap();
-
-    let app_config: AppConfig = parse_config(cfg_source.clone()).unwrap();
-    let config: Config = parse_config(cfg_source).unwrap();
-
-    // unix | listen | valid
-    // X    |        | X
-    // X    | X      |
-    //      |        |
-    //      | X      | X
-    if app_config.listen_address.is_none() == app_config.listen_socket.is_none() {
-        tracing::error!("Only one of listen address or unix socket must/should be configured.");
-        exit(2);
-    }
+    let app_config: AppConfig = parse_config("MAILFORM").unwrap();
+    let config: Config = parse_config("MAILFORM").unwrap();
+    let user_opts: tokio_listener::UserOptions = parse_config("MAILFORM_LISTENER").unwrap();
 
     if args.get_flag("check") {
         tracing::info!("Configuration is valid.");
@@ -112,27 +97,22 @@ pub(crate) async fn main() {
     let handle = thread::spawn(move || service.process_mail());
 
     // Start the web server
-    match app_config.listen_address {
-        Some(addr) => {
-            tracing::info!("Listening on {}", addr);
-            axum::Server::bind(&addr)
-                .serve(app.into_make_service())
-                .await
-                .unwrap();
-        }
-        None => {
-            let path = app_config.listen_socket.expect("Logically checked earlier");
-            let server = axum::Server::bind_unix(&path)
-                .map_err(|err| {
-                    tracing::error!("Failed to bind to the provided path: {}", err);
-                    exit(3);
-                })
-                .unwrap();
+    let listener = tokio_listener::Listener::bind(
+        &app_config.listener_address,
+        &tokio_listener::SystemOptions::default(),
+        &user_opts,
+    )
+    .await
+    .map_err(|err| {
+        tracing::error!("Failed to configure listener: {}", err);
+        exit(3);
+    })
+    .unwrap();
 
-            tracing::info!("Listening at {}", path.display());
-            server.serve(app.into_make_service()).await.unwrap();
-        }
-    }
+    tracing::info!("Listening on {}", app_config.listener_address);
+    tokio_listener::axum07::serve(listener, app.into_make_service())
+        .await
+        .unwrap();
 
     handle.join().unwrap();
 }

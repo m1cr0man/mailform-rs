@@ -20,9 +20,10 @@ pub async fn mail_post_json(
     Json(payload): Json<Message>,
 ) -> Result<impl IntoResponse, Error> {
     tracing::trace!(
-        "/v1/send/form: {} byte message from {}.",
-        payload.body.len(),
-        payload.from_address
+        endpoint = "/v1/send/json",
+        body_bytes = payload.body.len(),
+        from_address = payload.from_address,
+        "Message received",
     );
     mailform.queue_mail(payload).map(|_| StatusCode::NO_CONTENT)
 }
@@ -33,10 +34,11 @@ pub async fn mail_post_form(
     Form(payload): Form<Message>,
 ) -> Result<impl IntoResponse, Error> {
     tracing::trace!(
-        "/v1/send/form: {} byte message from {}. Returning to {}",
-        payload.body.len(),
-        payload.from_address,
-        query_params.redirect_path
+        endpoint = "/v1/send/form",
+        body_bytes = payload.body.len(),
+        from_address = payload.from_address,
+        redirect_path = query_params.redirect_path,
+        "Message received",
     );
     mailform.queue_mail(payload).map(|_| {
         (
