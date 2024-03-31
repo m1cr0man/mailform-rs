@@ -60,9 +60,9 @@ impl Mailform {
         loop {
             match self.recv.recv_timeout(Duration::from_secs(5)) {
                 Ok(msg) => match self.send_mail(msg.message.clone()) {
-                    Ok(_) => println!("Message sent"),
+                    Ok(_) => tracing::debug!("Message sent"),
                     Err(err) => {
-                        println!("{err:#?}");
+                        tracing::error!("{err:#?}");
                         if msg.ttl > 1 {
                             self.send
                                 .send(WrappedMessage {
@@ -73,7 +73,7 @@ impl Mailform {
                         }
                     }
                 },
-                Err(_) => println!("No message in last 5 seconds"),
+                Err(_) => tracing::debug!("No message in last 5 seconds"),
             }
         }
     }

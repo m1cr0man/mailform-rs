@@ -9,9 +9,8 @@ impl IntoResponse for Error {
     fn into_response(self) -> Response {
         let message = self.to_string();
         let code = match self {
-            Error::BuildMessage { source: _ } => StatusCode::INTERNAL_SERVER_ERROR,
-            Error::SendMessage { source: _ } => StatusCode::INTERNAL_SERVER_ERROR,
             Error::QueueMessage { source: _ } => StatusCode::BAD_REQUEST,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
         (code, message).into_response()
     }
