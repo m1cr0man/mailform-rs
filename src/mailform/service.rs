@@ -3,10 +3,7 @@ use super::{
 };
 
 use lettre::{transport::smtp::authentication::Credentials, SmtpTransport, Transport};
-use std::{
-    sync::mpsc::{self, RecvTimeoutError},
-    time::Duration,
-};
+use std::sync::mpsc;
 use uuid::Uuid;
 
 #[derive(Debug)]
@@ -61,27 +58,22 @@ impl Mailform {
     }
 
     pub fn process_mail(self) {
-        loop {
-            match self.recv.recv_timeout(Duration::from_secs(30)) {
-                Ok(msg) => match self.send_mail(msg.message.clone()) {
-                    Ok(_) => {
-                        tracing::info!(tracing_id = msg.tracing_id.to_string(), "Message sent")
+        for mut msg in self.recv.iter() {
+            match self.send_mail(msg.message.clone()) {
+                Ok(_) => {
+                    tracing::info!(tracing_id = msg.tracing_id.to_string(), "Message sent")
+                }
+                Err(err) => {
+                    tracing::error!(
+                        tracing_id = msg.tracing_id.to_string(),
+                        ttl = msg.ttl,
+                        "{err:#?}"
+                    );
+                    if msg.ttl > 1 {
+                        msg.ttl -= 1;
+                        self.send.send(msg).unwrap();
                     }
-                    Err(err) => {
-                        tracing::error!(tracing_id = msg.tracing_id.to_string(), "{err:#?}");
-                        if msg.ttl > 1 {
-                            self.send
-                                .send(WrappedMessage {
-                                    ttl: msg.ttl - 1,
-                                    message: msg.message,
-                                    tracing_id: msg.tracing_id,
-                                })
-                                .unwrap();
-                        }
-                    }
-                },
-                Err(RecvTimeoutError::Disconnected) => return,
-                Err(_) => {}
+                }
             }
         }
     }
