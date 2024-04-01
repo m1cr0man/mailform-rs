@@ -36,11 +36,16 @@ impl Mailform {
     }
 
     pub fn send_mail(&self, message: Message) -> Result<(), Error> {
+        let subject = match &self.config.fixed_subject {
+            Some(subj) => subj.clone(),
+            None => message.subject,
+        };
+
         let email = lettre::Message::builder()
             .from(self.config.from_address.clone())
             .reply_to(message.from_address)
             .to(self.config.to_address.clone())
-            .subject(message.subject)
+            .subject(subject)
             .body(message.body)
             .context(BuildMessageSnafu {})?;
 

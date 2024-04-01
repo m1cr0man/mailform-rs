@@ -13,4 +13,6 @@ pub struct Config {
     pub to_address: Mailbox,
 
     pub send_retries: usize,
+
+    pub fixed_subject: Option<String>,
 }
