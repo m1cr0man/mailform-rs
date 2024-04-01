@@ -1,4 +1,4 @@
-use super::models::Mailbox;
+use super::Mailbox;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Config {

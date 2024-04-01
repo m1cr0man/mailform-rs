@@ -1,10 +1,10 @@
 use super::{
-    error::Error, BuildMessageSnafu, Message, QueueMessageSnafu, SendMessageSnafu, WrappedMessage,
+    error::Error, BuildMessageSnafu, Message, QueueMessageSnafu, SendMessageSnafu, Uuid,
+    WrappedMessage,
 };
 
 use lettre::{transport::smtp::authentication::Credentials, SmtpTransport, Transport};
 use std::sync::mpsc;
-use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct Mailform {
