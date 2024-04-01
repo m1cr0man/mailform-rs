@@ -7,6 +7,7 @@ use std::{
     sync::mpsc::{self, RecvTimeoutError},
     time::Duration,
 };
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct Mailform {
@@ -39,9 +40,9 @@ impl Mailform {
 
     pub fn send_mail(&self, message: Message) -> Result<(), Error> {
         let email = lettre::Message::builder()
-            .from(self.config.from_address.parse().unwrap())
-            .reply_to(message.from_address.parse().unwrap())
-            .to(self.config.to_address.parse().unwrap())
+            .from(self.config.from_address.clone())
+            .reply_to(message.from_address)
+            .to(self.config.to_address.clone())
             .subject(message.subject)
             .body(message.body)
             .context(BuildMessageSnafu {})?;
@@ -63,14 +64,17 @@ impl Mailform {
         loop {
             match self.recv.recv_timeout(Duration::from_secs(30)) {
                 Ok(msg) => match self.send_mail(msg.message.clone()) {
-                    Ok(_) => tracing::debug!("Message sent"),
+                    Ok(_) => {
+                        tracing::info!(tracing_id = msg.tracing_id.to_string(), "Message sent")
+                    }
                     Err(err) => {
-                        tracing::error!("{err:#?}");
+                        tracing::error!(tracing_id = msg.tracing_id.to_string(), "{err:#?}");
                         if msg.ttl > 1 {
                             self.send
                                 .send(WrappedMessage {
                                     ttl: msg.ttl - 1,
                                     message: msg.message,
+                                    tracing_id: msg.tracing_id,
                                 })
                                 .unwrap();
                         }
@@ -96,12 +100,15 @@ pub struct MailformSender {
 }
 
 impl MailformSender {
-    pub fn queue_mail(&self, message: Message) -> Result<(), Error> {
+    pub fn queue_mail(&self, message: Message) -> Result<Uuid, Error> {
+        let tracing_id = Uuid::new_v4();
         self.send
             .send(WrappedMessage {
                 ttl: self.retries,
                 message,
+                tracing_id,
             })
-            .context(QueueMessageSnafu {})
+            .context(QueueMessageSnafu {})?;
+        Ok(tracing_id)
     }
 }

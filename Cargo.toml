@@ -1,6 +1,6 @@
 [package]
 name = "mailform-rs"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 license = "Apache-2.0"
 description = "Contact us form processor."
@@ -18,7 +18,14 @@ config = { version = "0.14", optional = true, default-features = false, features
     "convert-case",
 ] }
 env_logger = { version = "0.11", optional = true }
-lettre = "0.10"
+lettre = { version = "0.11", features = [
+    "serde",
+    "tracing",
+    "smtp-transport",
+    "native-tls",
+    "hostname",
+    "builder",
+], default-features = false }
 log = { version = "0.4", optional = true }
 pretty_env_logger = { version = "0.5", optional = true }
 serde = { version = "1", features = ["derive"] }
@@ -29,6 +36,7 @@ tokio-listener = { version = "0.3.2", optional = true, features = [
     "serde",
 ] }
 tracing = "0.1"
+uuid = { version = "1.8.0", features = ["v4"] }
 
 [features]
 cli = [

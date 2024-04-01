@@ -1,3 +1,4 @@
+use super::models::Mailbox;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct Config {
@@ -7,9 +8,9 @@ pub struct Config {
 
     pub smtp_password: String,
 
-    pub from_address: String,
+    pub from_address: Mailbox,
 
-    pub to_address: String,
+    pub to_address: Mailbox,
 
     pub send_retries: usize,
 }

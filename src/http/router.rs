@@ -10,6 +10,8 @@ use axum::{
     Extension, Router,
 };
 
+const TRACING_ID_HEADER: &str = "X-Mailform-Tracing-Id";
+
 #[derive(Debug, serde::Deserialize)]
 pub struct FormQueryParams {
     redirect_path: String,
@@ -19,13 +21,17 @@ pub async fn mail_post_json(
     Extension(mailform): Extension<Arc<MailformSender>>,
     Json(payload): Json<Message>,
 ) -> Result<impl IntoResponse, Error> {
-    tracing::trace!(
+    let body_bytes = payload.body.len();
+    let tracing_id = mailform.queue_mail(payload)?.to_string();
+
+    tracing::info!(
         endpoint = "/v1/send/json",
-        body_bytes = payload.body.len(),
-        from_address = payload.from_address,
+        body_bytes = body_bytes,
+        tracing_id = tracing_id,
         "Message received",
     );
-    mailform.queue_mail(payload).map(|_| StatusCode::NO_CONTENT)
+
+    Ok((StatusCode::NO_CONTENT, [(TRACING_ID_HEADER, tracing_id)]))
 }
 
 pub async fn mail_post_form(
@@ -33,19 +39,24 @@ pub async fn mail_post_form(
     Query(query_params): Query<FormQueryParams>,
     Form(payload): Form<Message>,
 ) -> Result<impl IntoResponse, Error> {
-    tracing::trace!(
+    let body_bytes = payload.body.len();
+    let tracing_id = mailform.queue_mail(payload)?.to_string();
+
+    tracing::info!(
         endpoint = "/v1/send/form",
-        body_bytes = payload.body.len(),
-        from_address = payload.from_address,
+        body_bytes = body_bytes,
+        tracing_id = tracing_id,
         redirect_path = query_params.redirect_path,
         "Message received",
     );
-    mailform.queue_mail(payload).map(|_| {
-        (
-            StatusCode::SEE_OTHER,
-            [("Location", query_params.redirect_path)],
-        )
-    })
+
+    Ok((
+        StatusCode::NO_CONTENT,
+        [
+            (TRACING_ID_HEADER, tracing_id),
+            ("Location", query_params.redirect_path),
+        ],
+    ))
 }
 
 pub fn get_router(mailform: Arc<MailformSender>) -> Router {
