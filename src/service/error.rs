@@ -15,4 +15,6 @@ pub enum Error {
     QueueMessage {
         source: std::sync::mpsc::SendError<WrappedMessage>,
     },
+    #[snafu(display("Failed to process request: {:#}", msg))]
+    Request { msg: String },
 }
