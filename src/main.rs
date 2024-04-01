@@ -1,6 +1,6 @@
-pub mod http;
-pub mod mailform;
 pub mod extensions;
+pub mod http;
+pub mod service;
 
 #[cfg(feature = "cli")]
 mod cli;

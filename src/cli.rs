@@ -4,7 +4,7 @@ use std::env;
 use std::io::Write;
 use std::{error::Error, process::exit, sync::Arc, thread};
 
-use crate::mailform::{Config, Mailform};
+use crate::service::{Config, Mailform};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct AppConfig {

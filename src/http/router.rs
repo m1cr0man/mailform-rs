@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::mailform::{Error, MailformSender, Message};
+use crate::service::{Error, MailformSender, Message};
 use axum::{
     extract::Form,
     extract::{Json, Query},

@@ -3,7 +3,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
-use crate::mailform::Error;
+use crate::service::Error;
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
