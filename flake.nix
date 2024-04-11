@@ -23,7 +23,37 @@
   };
 
   outputs = { self, nixpkgs, crane, fenix, flake-utils, advisory-db, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
+    {
+      overlays = {
+        mailform-rs-nixpkgs =
+          let
+            cargoConfig = (builtins.fromTOML (builtins.readFile "${self}/Cargo.toml"));
+            pname = cargoConfig.package.name;
+          in
+          final: prev: {
+            ${pname} = final.rustPlatform.buildRustPackage {
+              inherit pname;
+              version = cargoConfig.package.version;
+
+              src = self;
+
+              cargoHash = "sha256-j3B41omVog8J4yhuaYnolzm/F+QwGHTPyrgUjbvW8IE=";
+
+              OPENSSL_NO_VENDOR = "1";
+              PKG_CONFIG_PATH = "${final.openssl.dev}/lib/pkgconfig";
+              PKG_CONFIG = "${final.pkg-config}/bin/pkg-config";
+
+              meta = with final.lib; {
+                description = "Contact us form processor";
+                homepage = "https://github.com/m1cr0man/mailform-rs";
+                license = licenses.asl20;
+                maintainers = [ maintainers.m1cr0man ];
+              };
+            };
+          };
+      };
+    } //
+    (flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
           inherit system;
@@ -141,7 +171,7 @@
 
           overlay = (import nixpkgs {
             inherit system;
-            overlays = [ self.overlays.${system}.mailform-rs-nixpkgs ];
+            overlays = [ self.overlays.mailform-rs-nixpkgs ];
           }).mailform-rs;
         };
 
@@ -165,32 +195,6 @@
           drv = mailform-rs;
         };
 
-        overlays = {
-          mailform-rs-nixpkgs =
-            let
-              cargoConfig = (builtins.fromTOML (builtins.readFile "${self}/Cargo.toml"));
-              pname = cargoConfig.package.name;
-            in
-            final: prev: {
-              ${pname} = final.rustPlatform.buildRustPackage
-                (envVars // rec {
-                  inherit pname;
-                  version = cargoConfig.package.version;
-
-                  src = self;
-
-                  cargoHash = "sha256-j3B41omVog8J4yhuaYnolzm/F+QwGHTPyrgUjbvW8IE=";
-
-                  meta = with final.lib; {
-                    description = "Contact us form processor";
-                    homepage = "https://github.com/m1cr0man/mailform-rs";
-                    license = licenses.asl20;
-                    maintainers = [ maintainers.m1cr0man ];
-                  };
-                });
-            };
-        };
-
         devShells.default = craneLibDev.devShell
           {
             # Inherit inputs from checks.
@@ -205,6 +209,6 @@
               # pkgs.ripgrep
             ];
           } // envVars;
-      }
+      })
     );
 }
