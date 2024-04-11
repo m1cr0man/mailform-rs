@@ -138,6 +138,11 @@
             partitions = 1;
             partitionType = "count";
           });
+
+          overlay = (import nixpkgs {
+            inherit system;
+            overlays = [ self.overlays.${system}.mailform-rs-nixpkgs ];
+          }).mailform-rs;
         };
 
         packages = {
@@ -160,19 +165,46 @@
           drv = mailform-rs;
         };
 
-        devShells.default = craneLibDev.devShell {
-          # Inherit inputs from checks.
-          checks = self.checks.${system};
+        overlays = {
+          mailform-rs-nixpkgs =
+            let
+              cargoConfig = (builtins.fromTOML (builtins.readFile "${self}/Cargo.toml"));
+              pname = cargoConfig.package.name;
+            in
+            final: prev: {
+              ${pname} = final.rustPlatform.buildRustPackage
+                (envVars // rec {
+                  inherit pname;
+                  version = cargoConfig.package.version;
 
-          # Additional dev-shell environment variables can be set directly
-          # MY_CUSTOM_DEVELOPMENT_VAR = "something else";
-          RUST_SRC_PATH = "${devToolchain}/lib/rustlib/src/rust/library";
+                  src = self;
 
-          # Extra inputs can be added here; cargo and rustc are provided by default.
-          packages = [
-            # pkgs.ripgrep
-          ];
-        } // envVars;
+                  cargoHash = "sha256-j3B41omVog8J4yhuaYnolzm/F+QwGHTPyrgUjbvW8IE=";
+
+                  meta = with final.lib; {
+                    description = "Contact us form processor";
+                    homepage = "https://github.com/m1cr0man/mailform-rs";
+                    license = licenses.asl20;
+                    maintainers = [ maintainers.m1cr0man ];
+                  };
+                });
+            };
+        };
+
+        devShells.default = craneLibDev.devShell
+          {
+            # Inherit inputs from checks.
+            checks = self.checks.${system};
+
+            # Additional dev-shell environment variables can be set directly
+            # MY_CUSTOM_DEVELOPMENT_VAR = "something else";
+            RUST_SRC_PATH = "${devToolchain}/lib/rustlib/src/rust/library";
+
+            # Extra inputs can be added here; cargo and rustc are provided by default.
+            packages = [
+              # pkgs.ripgrep
+            ];
+          } // envVars;
       }
     );
 }
