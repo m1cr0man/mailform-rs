@@ -34,8 +34,8 @@
             ${pname} = final.rustPlatform.buildRustPackage {
               inherit pname;
               version = cargoConfig.package.version;
-
               src = self;
+              buildFeatures = [ "cli" ];
 
               cargoHash = "sha256-j3B41omVog8J4yhuaYnolzm/F+QwGHTPyrgUjbvW8IE=";
 
