@@ -36,7 +36,7 @@
               src = self;
               buildFeatures = [ "cli" ];
 
-              cargoHash = "sha256-j3B41omVog8J4yhuaYnolzm/F+QwGHTPyrgUjbvW8IE=";
+              cargoLock.lockFile = "${self}/Cargo.lock";
 
               OPENSSL_NO_VENDOR = "1";
               PKG_CONFIG_PATH = "${final.openssl.dev}/lib/pkgconfig";
@@ -169,11 +169,6 @@
             partitions = 1;
             partitionType = "count";
           });
-
-          overlay = (import nixpkgs {
-            inherit system;
-            overlays = [ self.overlays.mailform-rs-nixpkgs ];
-          }).mailform-rs;
         };
 
         packages = {
@@ -186,10 +181,14 @@
             inherit cargoArtifacts;
           });
           devTools = pkgs.linkFarm "vscode-dev-tools" {
-            inherit (pkgs) nixpkgs-fmt rnix-lsp gcc pkg-config;
+            inherit (pkgs) nixpkgs-fmt gcc pkg-config;
             openssl = pkgs.openssl.dev;
             rust = devToolchain;
           };
+          overlay = (import nixpkgs {
+            inherit system;
+            overlays = [ self.overlays.mailform-rs-nixpkgs ];
+          }).mailform-rs;
         };
 
         apps.default = flake-utils.lib.mkApp {
